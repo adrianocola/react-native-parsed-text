@@ -9,7 +9,7 @@ describe('TextExtraction', () => {
     it('returns an array with the text if there is no patterns', () => {
       const textExtraction = new TextExtraction('Some Text');
 
-      expect(textExtraction.parse()).toEqual([{ children: 'Some Text' }]);
+      expect(textExtraction.parse()).toEqual({ text: 'Some Text', tokens: {} });
     });
 
     it('returns an array with the text if the text cant be parsed', () => {
@@ -17,7 +17,7 @@ describe('TextExtraction', () => {
         { pattern: /abcdef/ },
       ]);
 
-      expect(textExtraction.parse()).toEqual([{ children: 'Some Text' }]);
+      expect(textExtraction.parse()).toEqual({ text: 'Some Text', tokens: {} });
     });
 
     it('returns an array with the text and return only present values', () => {
@@ -25,7 +25,7 @@ describe('TextExtraction', () => {
         { pattern: /abcdef/ },
       ]);
 
-      expect(textExtraction.parse()).toEqual([{ children: 'abcdef' }]);
+      expect(textExtraction.parse()).toEqual({"text": "{{TOKEN-0-0}}", "tokens": {"TOKEN-0-0": {"props": {}, "text": "abcdef"}}});
     });
 
     it('returns an array with text parts if there is matches', () => {
@@ -34,13 +34,7 @@ describe('TextExtraction', () => {
         [{ pattern: /bar/ }],
       );
 
-      expect(textExtraction.parse()).toEqual([
-        { children: 'hello my website is http://foo.' },
-        { children: 'bar' },
-        { children: ', ' },
-        { children: 'bar' },
-        { children: ' is good.' },
-      ]);
+      expect(textExtraction.parse()).toEqual({"text": "hello my website is http://foo.{{TOKEN-0-0}}, {{TOKEN-0-1}} is good.", "tokens": {"TOKEN-0-0": {"props": {}, "text": "bar"}, "TOKEN-0-1": {"props": {}, "text": "bar"}}});
     });
 
     it('return all matched urls', () => {
@@ -52,7 +46,7 @@ describe('TextExtraction', () => {
       const textExtraction = new TextExtraction(
         `this is my website ${urls[0]} and this is also ${
           urls[1]
-        } and why not this one also ${urls[2]}`,
+          } and why not this one also ${urls[2]}`,
         [
           {
             pattern: PATTERNS.url,
@@ -60,10 +54,7 @@ describe('TextExtraction', () => {
         ],
       );
 
-      const parsedText = textExtraction.parse();
-      expect(parsedText[1].children).toEqual(urls[0]);
-      expect(parsedText[3].children).toEqual(urls[1]);
-      expect(parsedText[5].children).toEqual(urls[2]);
+      expect(textExtraction.parse()).toEqual({"text": "this is my website {{TOKEN-0-0}} and this is also {{TOKEN-0-1}} and why not this one also https://t.co/hashKey", "tokens": {"TOKEN-0-0": {"props": {}, "text": "https://website.bz"}, "TOKEN-0-1": {"props": {}, "text": "http://website2.it"}}});
     });
 
     it('does not include trailing dots or unexpected punctuation', () => {
@@ -81,10 +72,7 @@ describe('TextExtraction', () => {
         ],
       );
 
-      const parsedText = textExtraction.parse();
-      expect(parsedText[1].children).toEqual(urls[0]);
-      expect(parsedText[3].children).toEqual(urls[1]);
-      expect(parsedText[5].children).toEqual(urls[2]);
+      expect(textExtraction.parse()).toEqual({"text": "URLS: {{TOKEN-0-0}} {{TOKEN-0-1}}, https://t.co/hashKey!", "tokens": {"TOKEN-0-0": {"props": {}, "text": "https://website.bz."}, "TOKEN-0-1": {"props": {}, "text": "http://website2.it"}}});
     });
 
     it('pass the values to the callbacks', done => {
@@ -98,33 +86,11 @@ describe('TextExtraction', () => {
         },
       ]);
 
-      const parsedText = textExtraction.parse();
+      const parsed = textExtraction.parse();
+      expect(parsed.text).toEqual('hello {{TOKEN-0-0}}');
+      expect(parsed.tokens['TOKEN-0-0'].props.onPress).toBeInstanceOf(Function);
 
-      expect(parsedText[0]).toEqual({ children: 'hello ' });
-      expect(parsedText[1].children).toEqual('foo');
-      expect(parsedText[1].onPress).toBeInstanceOf(Function);
-
-      parsedText[1].onPress(parsedText[1].children);
-    });
-
-    it('only allow a text to be parsed once', () => {
-      const textExtraction = new TextExtraction(
-        'hello my website is http://foo.bar, bar is good.',
-        [
-          {
-            pattern: /(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?/,
-          },
-          { pattern: /bar/ },
-        ],
-      );
-
-      expect(textExtraction.parse()).toEqual([
-        { children: 'hello my website is ' },
-        { children: 'http://foo.bar' },
-        { children: ', ' },
-        { children: 'bar' },
-        { children: ' is good.' },
-      ]);
+      parsed.tokens['TOKEN-0-0'].props.onPress(parsed.tokens['TOKEN-0-0'].text);
     });
 
     it('respects the parsing order', () => {
@@ -138,30 +104,19 @@ describe('TextExtraction', () => {
         ],
       );
 
-      expect(textExtraction.parse()).toEqual([
-        { children: 'hello my website is http://foo.' },
-        { children: 'bar' },
-        { children: ', ' },
-        { children: 'bar' },
-        { children: ' is good.' },
-      ]);
+      expect(textExtraction.parse()).toEqual({"text": "hello my website is http://foo.{{TOKEN-0-0}}, {{TOKEN-0-1}} is good.", "tokens": {"TOKEN-0-0": {"props": {}, "text": "bar"}, "TOKEN-0-1": {"props": {}, "text": "bar"}}});
     });
   });
 
   describe('renderText prop', () => {
-    it('checks that renderText is a function', done => {
+    it('checks that renderText is a function', () => {
       const textExtraction = new TextExtraction('Mention [@michel:561316513]', [
         { pattern: /\[(@[^:]+):([^\]]+)\]/i, renderText: 'foo' },
       ]);
 
-      const parsedText = textExtraction.parse();
-
-      expect(parsedText[0]).toEqual({ children: 'Mention ' });
-      expect(parsedText[1]).toEqual({ children: '[@michel:561316513]' });
-
-      done();
+      expect(textExtraction.parse()).toEqual({"text": "Mention {{TOKEN-0-0}}", "tokens": {"TOKEN-0-0": {"props": {}, "text": "[@michel:561316513]"}}});
     });
-    it('pass the values to the callbacks', done => {
+    it('pass the values to the callbacks', () => {
       const textExtraction = new TextExtraction('Mention [@michel:561316513]', [
         {
           pattern: /\[(@[^:]+):([^\]]+)\]/i,
@@ -176,12 +131,7 @@ describe('TextExtraction', () => {
         },
       ]);
 
-      const parsedText = textExtraction.parse();
-
-      expect(parsedText[0]).toEqual({ children: 'Mention ' });
-      expect(parsedText[1].children).toEqual('^^@michel^^');
-
-      done();
+      expect(textExtraction.parse()).toEqual({"text": "Mention {{TOKEN-0-0}}", "tokens": {"TOKEN-0-0": {"props": {}, "text": "^^@michel^^"}}});
     });
   });
 });
