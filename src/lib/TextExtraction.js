@@ -21,7 +21,7 @@ class TextExtraction {
     let count = 0;
 
     this.patterns.forEach((pattern, patternIndex) => {
-      const patternRegex = new RegExp(pattern.pattern, 'gm');
+      const patternRegex = new RegExp(pattern.pattern.source ? pattern.pattern.source : pattern.pattern, 'gm');
 
       const replace = (...matches) => {
         const tokenName = `TOKEN-${patternIndex}-${count}`;
